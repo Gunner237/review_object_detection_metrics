@@ -41,6 +41,7 @@ def parseArgs():
     # metadata for metrics (not always needed)
     parser.add_argument('--names', '-n', type=str, default='')
     parser.add_argument('-t', '--threshold', type=float, default=0.5)
+    parser.add_argument('--det_names',type=str,default='')
     
     # extra data (graphs and etc.)
     parser.add_argument('--plot', '-p', action='store_true')
@@ -79,6 +80,10 @@ def verifyArgs(args):
 
     if args.names == '':
         logging.warning("Names property empty so assuming detection format is class_id based.")
+        
+    if args.det_names == '':
+        logging.warning("Detector names property empty so assuming detector and ground truth use same names file.")
+        args.det_names = args.names
 
     if not os.path.exists(args.save_path):
         logging.warning("Savepath directory %s is not found. Attempting to create folder"%(args.save_path))
@@ -144,14 +149,14 @@ def __cli__(args):
 
         # If VOC specified, then switch id based to string for detection bbox:
         #if args.format_gt == 'voc' or args.format_gt == 'imagenet':
-        if args.names != '':
+        if args.det_names != '':
             # if names file not given, assume id-based detection output
-            with open(args.names, 'r') as r:
-                names = list(map(str.strip, r.readlines()))
+            with open(args.det_names, 'r') as r:
+                det_names = list(map(str.strip, r.readlines()))
                 for det in det_anno:
                     try:
                         _index = int(det._class_id)
-                        _out = names[_index]
+                        _out = det_names[_index]
                         det._class_id = _out
                     except ValueError:
                         print("Detection files have class IDs as integers!")
@@ -164,8 +169,6 @@ def __cli__(args):
         for c, amount in bb_per_class.items():
             c = c.ljust(longest_class_name, ' ')
             amount_bb_per_class += f'{c} : {amount}\n'
-            
-    print(args)
 
     # print out results of annotations loaded:
     print("%d ground truth bounding boxes retrieved"%(len(gt_anno)))
