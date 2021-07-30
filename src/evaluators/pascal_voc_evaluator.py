@@ -228,7 +228,8 @@ def plot_precision_recall_curve(results,
                                 mAP=None,
                                 showInterpolatedPrecision=False,
                                 savePath=None,
-                                showGraphic=True):
+                                showGraphic=True,
+                                customTitle=None):
     result = None
     plt.close()
     # Each resut represents a class
@@ -263,9 +264,9 @@ def plot_precision_recall_curve(results,
     plt.ylim([-0.1, 1.1])
     if mAP:
         map_str = "{0:.2f}%".format(mAP * 100)
-        plt.title(f'Precision x Recall curve, mAP={map_str}')
+        plt.title(f'{customTitle}\nPrecision x Recall curve, mAP={map_str}')
     else:
-        plt.title('Precision x Recall curve')
+        plt.title(f'{customTitle}\nPrecision x Recall curve')
     plt.legend(shadow=True)
     plt.grid()
     if savePath is not None:
@@ -281,7 +282,8 @@ def plot_precision_recall_curves(results,
                                  showAP=False,
                                  showInterpolatedPrecision=False,
                                  savePath=None,
-                                 showGraphic=True):
+                                 showGraphic=True,
+                                 customTitle=None):
     result = None
     # Each resut represents a class
     for classId, result in results.items():
@@ -315,9 +317,9 @@ def plot_precision_recall_curves(results,
         if showAP:
             ap_str = "{0:.2f}%".format(average_precision * 100)
             # ap_str = "{0:.4f}%".format(average_precision * 100)
-            plt.title('Precision x Recall curve \nClass: %s, AP: %s' % (str(classId), ap_str))
+            plt.title('%s\nPrecision x Recall curve \nClass: %s, AP: %s' % (customTitle, str(classId), ap_str))
         else:
-            plt.title('Precision x Recall curve \nClass: %s' % str(classId))
+            plt.title('%s\nPrecision x Recall curve \nClass: %s' % (customTitle,str(classId)))
         plt.legend(shadow=True)
         plt.grid()
         ############################################################

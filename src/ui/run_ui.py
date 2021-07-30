@@ -98,16 +98,16 @@ class Main_Dialog(QMainWindow, Main_UI):
             valid_image_dir = False
             if self.dir_images_gt is not None and os.path.isdir(self.dir_images_gt):
                 found_image_files = general_utils.get_files_dir(
-                    self.dir_images_gt, extensions=['jpg', 'jpge', 'png', 'bmp', 'tiff', 'tif'])
+                    self.dir_images_gt, extensions=['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'tif'])
                 if len(found_image_files) != 0:
                     valid_image_dir = True
-            if valid_image_dir is False:
-                self.show_popup(
-                    f'For the selected annotation type, it is necessary to inform a directory with the dataset images.\nDirectory is empty or does not have valid images.',
-                    'Invalid image directory',
-                    buttons=QMessageBox.Ok,
-                    icon=QMessageBox.Information)
-                return False
+            # if valid_image_dir is False:
+            #     self.show_popup(
+            #         f'For the selected annotation type, it is necessary to inform a directory with the dataset images.\nDirectory is empty or does not have valid images.',
+            #         'Invalid image directory',
+            #         buttons=QMessageBox.Ok,
+            #         icon=QMessageBox.Information)
+            #     return False
         # if its detection format requires class_id, text file containing the classes of objects must be informed
         if self.rad_det_ci_format_text_yolo_rel.isChecked(
         ) or self.rad_det_ci_format_text_xyx2y2_abs.isChecked(
@@ -318,11 +318,11 @@ class Main_Dialog(QMainWindow, Main_UI):
         gt_annotations = self.load_annotations_gt()
         if gt_annotations is None or len(gt_annotations) == 0:
             self.show_popup(
-                'No ground-truth bounding box of the selected type was found in the folder.\nCheck if the selected type corresponds to the files in the folder and try again.',
+                'No ground-truth bounding box of the selected type was found in the folder.\nCheck if the selected type corresponds to the files in the folder and try again. \n[!] THIS HAS BEEN OVERRIDEN LINE 325',
                 'Invalid groundtruths',
                 buttons=QMessageBox.Ok,
                 icon=QMessageBox.Information)
-            return
+            # return
 
         coco_res = {}
         pascal_res = {}

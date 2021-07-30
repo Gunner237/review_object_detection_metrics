@@ -46,6 +46,8 @@ def parseArgs():
     parser.add_argument('--plot', '-p', action='store_true')
     parser.add_argument('--save_path', '-sp', type=str, required=False, default="./results/")
     
+    parser.add_argument('--plot_title', '-pt', type=str, required=False, default = '')
+    
     # TODO: Add the same dataset analysis seen in the GUI:
     #parser.add_argument('--info', action='store_true')
     
@@ -154,14 +156,88 @@ def __cli__(args):
                     except ValueError:
                         print("Detection files have class IDs as integers!")
 
+    bb_per_class = BoundingBox.get_amount_bounding_box_all_classes(det_anno)
+    amount_bb_per_class = 'No class found'
+    if len(bb_per_class) > 0:
+        amount_bb_per_class = ''
+        longest_class_name = len(max(bb_per_class.keys(), key=len))
+        for c, amount in bb_per_class.items():
+            c = c.ljust(longest_class_name, ' ')
+            amount_bb_per_class += f'{c} : {amount}\n'
+            
+    print(args)
+
     # print out results of annotations loaded:
     print("%d ground truth bounding boxes retrieved"%(len(gt_anno)))
     print("%d detection bounding boxes retrieved"%(len(det_anno)))
+    print(amount_bb_per_class)
+    
+    f = open(f"{args.save_path}/detections.txt", "w+")
+    f.write("%d ground truth bounding boxes retrieved\n"%(len(gt_anno)))
+    f.write("%d detection bounding boxes retrieved\n\n"%(len(det_anno)))
+    f.write(amount_bb_per_class)
+    f.close()
 
     # compute bboxes with given metric:
+    
+        # 11-POINT INTERPOLATION:
+    if 'voc2007' in args.metric:
+        logging.info("Running metric with VOC2012 metric, using the 11-point interpolation approach")
+        
+        voc_sum = pascal_voc_evaluator.get_pascalvoc_metrics(gt_anno, det_anno, iou_threshold=args.threshold, method=MethodAveragePrecision.ELEVEN_POINT_INTERPOLATION)
+        print("mAP: %f"%(voc_sum['mAP']))
+        print("Class APs:")
+        for class_item in voc_sum['per_class'].items():
+            if class_item[1]['AP'] != None:
+                print("%s AP: %f"%(class_item[0], class_item[1]['AP']))
+            else:
+                logging.warning('AP for %s is None'%(class_item[0]))
+
+        if args.plot:
+            pascal_voc_evaluator.plot_precision_recall_curve(voc_sum['per_class'], mAP=voc_sum['mAP'], savePath=args.save_path, showGraphic=False)
+        # return voc_sum
+    else:
+        pass
+
+    # EVERY POINT INTERPOLATION:
+    # elif args.metric == 'voc2012' or args.metric == 'auc':
+    if 'voc2012' in args.metric:
+        logging.info("Running metric with VOC2012 metric, using the every point interpolation approach")
+
+        voc_sum = pascal_voc_evaluator.get_pascalvoc_metrics(gt_anno, det_anno, iou_threshold=args.threshold)
+        
+        # Output to console
+        print("mAP: %f"%(voc_sum['mAP']))
+        print("Class APs:")
+        for class_item in voc_sum['per_class'].items():
+            if class_item[1]['AP'] != None:
+                print("%s AP: %f"%(class_item[0], class_item[1]['AP']))
+            else:
+                logging.warning('AP for %s is None'%(class_item[0]))
+        
+        # Output to text file
+        f = open(f"{args.save_path}/metrics.txt", "a+")
+        f.write("PASCAL METRIC (mAP):\n")
+        f.write("mAP: %g\n\n"%(voc_sum['mAP']))
+        f.write("PASCAL METRIC (AP per class):\n")
+        for class_item in voc_sum['per_class'].items():
+            if class_item[1]['AP'] != None:
+                f.write("%s: %g\n"%(class_item[0], class_item[1]['AP']))
+        f.close()
+        
+        if args.plot:
+            # All classes
+            pascal_voc_evaluator.plot_precision_recall_curve(voc_sum['per_class'], mAP=voc_sum['mAP'], savePath=args.save_path, showGraphic=False, customTitle=args.plot_title)
+            
+            # For each class
+            pascal_voc_evaluator.plot_precision_recall_curves(voc_sum['per_class'], showAP=True, savePath=args.save_path, showGraphic=False, customTitle=args.plot_title)
+            
+        # return voc_sum
+    else:
+        pass
 
     # COCO (101-POINT INTERPOLATION)
-    if args.metric == 'coco':
+    if 'coco' in args.metric:
         logging.info("Running metric with COCO metric")
 
         # use coco_out for PR graphs and coco_sum for just the AP
@@ -182,6 +258,22 @@ def __cli__(args):
                 'AR Small: %f\n'
                 'AR Medium: %f\n'
                 'AR Large: %f\n\n'%value_only) )
+        
+        f = open(f"{args.save_path}/metrics.txt", "a+")
+        f.write(('\nCOCO METRICS:\n'
+                'AP [.5:.05:.95]: %f\n'
+                'AP50: %f\n'
+                'AP75: %f\n'
+                'APsmall: %f\n'
+                'APmedium: %f\n'
+                'APlarge: %f\n'
+                'AR1: %f\n'
+                'AR10: %f\n'
+                'AR100: %f\n'
+                'ARsmall: %f\n'
+                'ARmedium: %f\n'
+                'ARlarge: %f\n\n'%value_only))
+        f.close()
 
         print("Class APs:")
         for item in coco_out.items():
@@ -193,44 +285,12 @@ def __cli__(args):
         if args.plot:
             logging.warning("Graphing precision-recall is not supported!")
         
-        return coco_sum
-
-    # 11-POINT INTERPOLATION:
-    elif args.metric == 'voc2007':
-        logging.info("Running metric with VOC2012 metric, using the 11-point interpolation approach")
-        
-        voc_sum = pascal_voc_evaluator.get_pascalvoc_metrics(gt_anno, det_anno, iou_threshold=args.threshold, method=MethodAveragePrecision.ELEVEN_POINT_INTERPOLATION)
-        print("mAP: %f"%(voc_sum['mAP']))
-        print("Class APs:")
-        for class_item in voc_sum['per_class'].items():
-            if class_item[1]['AP'] != None:
-                print("%s AP: %f"%(class_item[0], class_item[1]['AP']))
-            else:
-                logging.warning('AP for %s is None'%(class_item[0]))
-
-        if args.plot:
-            pascal_voc_evaluator.plot_precision_recall_curve(voc_sum['per_class'], mAP=voc_sum['mAP'], savePath=args.save_path, showGraphic=False)
-        return voc_sum
-
-    # EVERY POINT INTERPOLATION:
-    elif args.metric == 'voc2012' or args.metric == 'auc':
-        logging.info("Running metric with VOC2012 metric, using the every point interpolation approach")
-
-        voc_sum = pascal_voc_evaluator.get_pascalvoc_metrics(gt_anno, det_anno, iou_threshold=args.threshold)
-        print("mAP: %f"%(voc_sum['mAP']))
-        print("Class APs:")
-        for class_item in voc_sum['per_class'].items():
-            if class_item[1]['AP'] != None:
-                print("%s AP: %f"%(class_item[0], class_item[1]['AP']))
-            else:
-                logging.warning('AP for %s is None'%(class_item[0]))
-        
-        if args.plot:
-            pascal_voc_evaluator.plot_precision_recall_curve(voc_sum['per_class'], mAP=voc_sum['mAP'], savePath=args.save_path, showGraphic=False)
-        return voc_sum
+        # return coco_sum
+    else:
+        pass
     
     # SST METRIC:
-    elif args.metric == 'tube':
+    if args.metric == 'tube':
         tube_out = tube.evaluate()
         per_class, mAP = tube_out
         print("mAP: %f"%(mAP))
@@ -240,7 +300,8 @@ def __cli__(args):
         return tube_out
     else:
         # Error out for incorrect metric format
-        raise Exception("%s is not a valid metric (coco, voc2007, voc2012, auc)"%(args.format_gt))
+        # raise Exception("%s is not a valid metric (coco, voc2007, voc2012, auc)"%(args.format_gt))
+        pass
 
 if __name__ == '__main__':
     args = parseArgs()

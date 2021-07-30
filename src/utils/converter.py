@@ -269,7 +269,7 @@ def text2bb(annotations_path,
                 img_path = general_utils.find_file(img_dir, img_filename, match_extension=False)
                 if img_path is None or os.path.isfile(img_path) is False:
                     print(
-                        f'Warning: Image not found in the directory {img_path}. It is required to get its dimensions'
+                        f'Warning: Image not found in the directory {img_path}. It is required to get its dimensions. file_path: {file_path}'
                     )
                     return ret
                 resolution = general_utils.get_image_resolution(img_path)
