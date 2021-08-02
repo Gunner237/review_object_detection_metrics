@@ -170,18 +170,33 @@ def __cli__(args):
             c = c.ljust(longest_class_name, ' ')
             amount_bb_per_class += f'{c} : {amount}\n'
             
+    bb_per_class_gt = BoundingBox.get_amount_bounding_box_all_classes(gt_anno)
+    amount_bb_per_class_gt = 'No class found'
+    if len(bb_per_class_gt) > 0:
+        amount_bb_per_class_gt = ''
+        longest_class_name_gt = len(max(bb_per_class_gt.keys(), key=len))
+        for c, amount in bb_per_class_gt.items():
+            c = c.ljust(longest_class_name_gt, ' ')
+            amount_bb_per_class_gt += f'{c} : {amount}\n'
+            
     total_images = BoundingBox.get_total_images(det_anno)
 
     # print out results of annotations loaded:
     print("%d images found with annotations"%total_images)
     print("%d ground truth bounding boxes retrieved"%(len(gt_anno)))
     print("%d detection bounding boxes retrieved"%(len(det_anno)))
+    print("=== GROUND TRUTH ===")
+    print(amount_bb_per_class_gt)
+    print("=== DETECTIONS ===")
     print(amount_bb_per_class)
     
     f = open(f"{args.save_path}/detections.txt", "w+")
     f.write("%d images found with annotations\n"%total_images)
     f.write("%d ground truth bounding boxes retrieved\n"%(len(gt_anno)))
     f.write("%d detection bounding boxes retrieved\n\n"%(len(det_anno)))
+    f.write("=== GROUND TRUTH ===\n")
+    f.write(amount_bb_per_class_gt)
+    f.write("\n=== DETECTIONS ===\n")
     f.write(amount_bb_per_class)
     f.close()
 
