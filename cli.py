@@ -180,23 +180,26 @@ def __cli__(args):
             amount_bb_per_class_gt += f'{c} : {amount}\n'
             
     total_images = BoundingBox.get_total_images(det_anno)
+    total_images_gt = BoundingBox.get_total_images(gt_anno)
 
     # print out results of annotations loaded:
-    print("%d images found with annotations"%total_images)
-    print("%d ground truth bounding boxes retrieved"%(len(gt_anno)))
-    print("%d detection bounding boxes retrieved"%(len(det_anno)))
     print("=== GROUND TRUTH ===")
+    print("%d images found with ground truth annotations"%total_images_gt)
+    print("%d ground truth bounding boxes retrieved"%(len(gt_anno)))
     print(amount_bb_per_class_gt)
     print("=== DETECTIONS ===")
+    print("%d images found with detection annotations"%total_images)
+    print("%d detection bounding boxes retrieved"%(len(det_anno)))
     print(amount_bb_per_class)
     
     f = open(f"{args.save_path}/detections.txt", "w+")
-    f.write("%d images found with annotations\n"%total_images)
-    f.write("%d ground truth bounding boxes retrieved\n"%(len(gt_anno)))
-    f.write("%d detection bounding boxes retrieved\n\n"%(len(det_anno)))
     f.write("=== GROUND TRUTH ===\n")
+    f.write("%d images found with ground truth annotations\n"%total_images_gt)
+    f.write("%d ground truth bounding boxes retrieved\n"%(len(gt_anno)))
     f.write(amount_bb_per_class_gt)
     f.write("\n=== DETECTIONS ===\n")
+    f.write("%d images found with detection annotations\n"%total_images)
+    f.write("%d detection bounding boxes retrieved\n"%(len(det_anno)))
     f.write(amount_bb_per_class)
     f.close()
 
