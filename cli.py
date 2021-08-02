@@ -169,13 +169,17 @@ def __cli__(args):
         for c, amount in bb_per_class.items():
             c = c.ljust(longest_class_name, ' ')
             amount_bb_per_class += f'{c} : {amount}\n'
+            
+    total_images = BoundingBox.get_total_images(det_anno)
 
     # print out results of annotations loaded:
+    print("%d images found with annotations"%total_images)
     print("%d ground truth bounding boxes retrieved"%(len(gt_anno)))
     print("%d detection bounding boxes retrieved"%(len(det_anno)))
     print(amount_bb_per_class)
     
     f = open(f"{args.save_path}/detections.txt", "w+")
+    f.write("%d images found with annotations\n"%total_images)
     f.write("%d ground truth bounding boxes retrieved\n"%(len(gt_anno)))
     f.write("%d detection bounding boxes retrieved\n\n"%(len(det_anno)))
     f.write(amount_bb_per_class)
