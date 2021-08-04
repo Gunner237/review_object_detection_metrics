@@ -22,10 +22,10 @@
 from collections import defaultdict
 
 import numpy as np
-from src.bounding_box import BBFormat
+from src.bounding_box import BBFormat, BoundingBox
 
 
-def get_coco_summary(groundtruth_bbs, detected_bbs):
+def get_coco_summary(groundtruth_bbs, detected_bbs,weighted=0):
     """Calculate the 12 standard metrics used in COCOEval,
         AP, AP50, AP75,
         AR1, AR10, AR100,
@@ -87,85 +87,169 @@ def get_coco_summary(groundtruth_bbs, detected_bbs):
         return res
 
     iou_thresholds = np.linspace(0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True)
+    
+    def unique(list1):
+        x = np.array(list1)
+        return(np.unique(x))
 
     # compute simple AP with all thresholds, using up to 100 dets, and all areas
     full = {
         i: _evaluate(iou_threshold=i, max_dets=100, area_range=(0, np.inf))
         for i in iou_thresholds
     }
+    
+    bb_per_class_gt = BoundingBox.get_amount_bounding_box_all_classes(groundtruth_bbs)
+    # print("\n\n==========\nCOCO_METRICS_RAW\n==========\n")
+    # print(bb_per_class_gt)
+    
+    def weight_metrics(metricArray,classListArray,gtBoundingBoxesPerClass,measurements):
+        uniqueClassListArray = unique(classListArray)
+        totalBoundingBoxes = 0
+        for currentClass in uniqueClassListArray:
+            totalBoundingBoxes = totalBoundingBoxes + gtBoundingBoxesPerClass[currentClass]
+        return np.sum([metricArray[x]*gtBoundingBoxesPerClass[classListArray[x]] for x in list(range(0,len(classListArray)))])/(totalBoundingBoxes*measurements)
+    
+    fullap50_classlistarr = [x['class'] for x in full[0.50] if x['AP'] is not None]
+    fullap75_classlistarr = [x['class'] for x in full[0.75] if x['AP'] is not None]
+    fullap_classlistarr = [x['class'] for k in full for x in full[k] if x['AP'] is not None]
 
-    AP50 = np.mean([x['AP'] for x in full[0.50] if x['AP'] is not None])
-    AP75 = np.mean([x['AP'] for x in full[0.75] if x['AP'] is not None])
-    AP = np.mean([x['AP'] for k in full for x in full[k] if x['AP'] is not None])
+    AP50arr = [x['AP'] for x in full[0.50] if x['AP'] is not None]
+    AP50 = np.mean(AP50arr)
+    AP50_weighted = weight_metrics(AP50arr,fullap50_classlistarr,bb_per_class_gt,1)
+    # print(f"AP50:\t\t {AP50}\nAP50 (weighted): {AP50_weighted}")
+    
+    AP75arr = [x['AP'] for x in full[0.75] if x['AP'] is not None]
+    AP75 = np.mean(AP75arr)
+    AP75_weighted = weight_metrics(AP75arr,fullap75_classlistarr,bb_per_class_gt,1)
+    # print(f"AP75:\t\t {AP75}\nAP75 (weighted): {AP75_weighted}")
+    
+    AParr = [x['AP'] for k in full for x in full[k] if x['AP'] is not None]
+    AP = np.mean(AParr)
+    AP_weighted = weight_metrics(AParr,fullap_classlistarr,bb_per_class_gt,10) # As AP involves 10 seperate measurements
+    # print(f"AP:\t\t {AP}\nAP (weighted):\t {AP_weighted}")
 
     # max recall for 100 dets can also be calculated here
-    AR100 = np.mean(
-        [x['TP'] / x['total positives'] for k in full for x in full[k] if x['TP'] is not None])
+    fullar100_classlistarr = [x['class'] for k in full for x in full[k] if x['TP'] is not None]
+    AR100arr = [x['TP'] / x['total positives'] for k in full for x in full[k] if x['TP'] is not None]
+    AR100 = np.mean(AR100arr)
+    AR100_weighted = weight_metrics(AR100arr,fullar100_classlistarr,bb_per_class_gt,10) # As AR100 involves 10 seperate measurements
+    # print(f"AR100:\t\t {AR100}\nAR100 (weighted):{AR100_weighted}")
 
     small = {
         i: _evaluate(iou_threshold=i, max_dets=100, area_range=(0, 32**2))
         for i in iou_thresholds
     }
-    APsmall = [x['AP'] for k in small for x in small[k] if x['AP'] is not None]
-    APsmall = np.nan if APsmall == [] else np.mean(APsmall)
-    ARsmall = [
-        x['TP'] / x['total positives'] for k in small for x in small[k] if x['TP'] is not None
-    ]
-    ARsmall = np.nan if ARsmall == [] else np.mean(ARsmall)
+    smallap_classlistarr = [x['class'] for k in small for x in small[k] if x['AP'] is not None]
+    smallar_classlistarr = [x['class'] for k in small for x in small[k] if x['TP'] is not None]
+    
+    APsmallarr = [x['AP'] for k in small for x in small[k] if x['AP'] is not None]
+    APsmall = np.nan if APsmallarr == [] else np.mean(APsmallarr)
+    APsmall_weighted = np.nan if APsmallarr == [] else weight_metrics(APsmallarr,smallap_classlistarr,bb_per_class_gt,10)
+    # print(f"AP Small:\t\t {APsmall}\nAP Small (weighted):\t {APsmall_weighted}")
+    
+    ARsmallarr = [x['TP'] / x['total positives'] for k in small for x in small[k] if x['TP'] is not None]
+    ARsmall = np.nan if ARsmallarr == [] else np.mean(ARsmallarr)
+    ARsmall_weighted = np.nan if ARsmallarr == [] else weight_metrics(ARsmallarr,smallar_classlistarr,bb_per_class_gt,10)
+    # print(f"AR Small:\t\t {ARsmall}\nAR Small (weighted):\t {ARsmall_weighted}")
 
     medium = {
         i: _evaluate(iou_threshold=i, max_dets=100, area_range=(32**2, 96**2))
         for i in iou_thresholds
     }
-    APmedium = [x['AP'] for k in medium for x in medium[k] if x['AP'] is not None]
-    APmedium = np.nan if APmedium == [] else np.mean(APmedium)
-    ARmedium = [
-        x['TP'] / x['total positives'] for k in medium for x in medium[k] if x['TP'] is not None
-    ]
-    ARmedium = np.nan if ARmedium == [] else np.mean(ARmedium)
+    mediumap_classlistarr = [x['class'] for k in medium for x in medium[k] if x['AP'] is not None]
+    mediumar_classlistarr = [x['class'] for k in medium for x in medium[k] if x['TP'] is not None]
+    
+    APmediumarr = [x['AP'] for k in medium for x in medium[k] if x['AP'] is not None]
+    APmedium = np.nan if APmediumarr == [] else np.mean(APmediumarr)
+    APmedium_weighted = np.nan if APmediumarr == [] else weight_metrics(APmediumarr,mediumap_classlistarr,bb_per_class_gt,10)
+    # print(f"AP Medium:\t\t {APmedium}\nAP Medium (weighted):\t {APmedium_weighted}")
+    
+    ARmediumarr = [x['TP'] / x['total positives'] for k in medium for x in medium[k] if x['TP'] is not None]
+    ARmedium = np.nan if ARmediumarr == [] else np.mean(ARmediumarr)
+    ARmedium_weighted = np.nan if ARmediumarr == [] else weight_metrics(ARmediumarr,mediumar_classlistarr,bb_per_class_gt,10)
+    # print(f"AR Medium:\t\t {ARmedium}\nAR Medium (weighted):\t {ARmedium_weighted}")
 
     large = {
         i: _evaluate(iou_threshold=i, max_dets=100, area_range=(96**2, np.inf))
         for i in iou_thresholds
     }
-    APlarge = [x['AP'] for k in large for x in large[k] if x['AP'] is not None]
-    APlarge = np.nan if APlarge == [] else np.mean(APlarge)
-    ARlarge = [
-        x['TP'] / x['total positives'] for k in large for x in large[k] if x['TP'] is not None
-    ]
-    ARlarge = np.nan if ARlarge == [] else np.mean(ARlarge)
+    largeap_classlistarr = [x['class'] for k in large for x in large[k] if x['AP'] is not None]
+    largear_classlistarr = [x['class'] for k in large for x in large[k] if x['TP'] is not None]
+    
+    APlargearr = [x['AP'] for k in large for x in large[k] if x['AP'] is not None]
+    APlarge = np.nan if APlargearr == [] else np.mean(APlargearr)
+    APlarge_weighted = np.nan if APlargearr == [] else weight_metrics(APlargearr,largeap_classlistarr,bb_per_class_gt,10)
+    # print(f"AP Large:\t\t {APlarge}\nAP Large (weighted):\t {APlarge_weighted}")
+    
+    ARlargearr = [x['TP'] / x['total positives'] for k in large for x in large[k] if x['TP'] is not None]
+    ARlarge = np.nan if ARlargearr == [] else np.mean(ARlargearr)
+    ARlarge_weighted = np.nan if ARlargearr == [] else weight_metrics(ARlargearr,largear_classlistarr,bb_per_class_gt,10)
+    # print(f"AR Large:\t\t {ARlarge}\nAR Large (weighted):\t {ARlarge_weighted}")
 
     max_det1 = {
         i: _evaluate(iou_threshold=i, max_dets=1, area_range=(0, np.inf))
         for i in iou_thresholds
     }
-    AR1 = np.mean([
-        x['TP'] / x['total positives'] for k in max_det1 for x in max_det1[k] if x['TP'] is not None
-    ])
+    ar1_classlistarr = [x['class'] for k in max_det1 for x in max_det1[k] if x['TP'] is not None]
+    
+    AR1arr = [x['TP'] / x['total positives'] for k in max_det1 for x in max_det1[k] if x['TP'] is not None]
+    AR1 = np.mean(AR1arr)
+    AR1_weighted = weight_metrics(AR1arr,ar1_classlistarr,bb_per_class_gt,10)
+    # print(f"AR1:\t\t {AR1}\nAR1 (weighted):\t {AR1_weighted}")
 
     max_det10 = {
         i: _evaluate(iou_threshold=i, max_dets=10, area_range=(0, np.inf))
         for i in iou_thresholds
     }
-    AR10 = np.mean([
-        x['TP'] / x['total positives'] for k in max_det10 for x in max_det10[k]
-        if x['TP'] is not None
-    ])
+    ar10_classlistarr = [x['class'] for k in max_det10 for x in max_det10[k] if x['TP'] is not None]
+    
+    AR10arr = [x['TP'] / x['total positives'] for k in max_det10 for x in max_det10[k] if x['TP'] is not None]
+    AR10 = np.mean(AR10arr)
+    AR10_weighted = weight_metrics(AR10arr,ar10_classlistarr,bb_per_class_gt,10)
+    # print(f"AR10:\t\t {AR10}\nAR10 (weighted): {AR10_weighted}")
 
-    return {
-        "AP": AP,
-        "AP50": AP50,
-        "AP75": AP75,
-        "APsmall": APsmall,
-        "APmedium": APmedium,
-        "APlarge": APlarge,
-        "AR1": AR1,
-        "AR10": AR10,
-        "AR100": AR100,
-        "ARsmall": ARsmall,
-        "ARmedium": ARmedium,
-        "ARlarge": ARlarge
-    }
+    if weighted == 1:
+        return {
+            "AP": AP,
+            "AP50": AP50,
+            "AP75": AP75,
+            "APsmall": APsmall,
+            "APmedium": APmedium,
+            "APlarge": APlarge,
+            "AR1": AR1,
+            "AR10": AR10,
+            "AR100": AR100,
+            "ARsmall": ARsmall,
+            "ARmedium": ARmedium,
+            "ARlarge": ARlarge,
+            "AP_weighted": AP_weighted,
+            "AP50_weighted": AP50_weighted,
+            "AP75_weighted": AP75_weighted,
+            "APsmall_weighted": APsmall_weighted,
+            "APmedium_weighted": APmedium_weighted,
+            "APlarge_weighted": APlarge_weighted,
+            "AR1_weighted": AR1_weighted,
+            "AR10_weighted": AR10_weighted,
+            "AR100_weighted": AR100_weighted,
+            "ARsmall_weighted": ARsmall_weighted,
+            "ARmedium_weighted": ARmedium_weighted,
+            "ARlarge_weighted": ARlarge_weighted
+        }
+    else:
+        return {
+            "AP": AP,
+            "AP50": AP50,
+            "AP75": AP75,
+            "APsmall": APsmall,
+            "APmedium": APmedium,
+            "APlarge": APlarge,
+            "AR1": AR1,
+            "AR10": AR10,
+            "AR100": AR100,
+            "ARsmall": ARsmall,
+            "ARmedium": ARmedium,
+            "ARlarge": ARlarge,
+        }
 
 
 def get_coco_metrics(

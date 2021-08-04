@@ -266,11 +266,28 @@ def __cli__(args):
         logging.info("Running metric with COCO metric")
 
         # use coco_out for PR graphs and coco_sum for just the AP
-        coco_sum = coco_evaluator.get_coco_summary(gt_anno, det_anno)
+        coco_sum = coco_evaluator.get_coco_summary(gt_anno, det_anno,1)
         coco_out = coco_evaluator.get_coco_metrics(gt_anno, det_anno, iou_threshold=args.threshold)
+        
+        # print(coco_sum)
+        
+        # print(coco_out)
         
         value_only = tuple([float(_i[1]) for _i in coco_sum.items()])
         print( ('\nCOCO metric:\n'
+                'AP [.5:.05:.95]: %f\n'
+                'AP50: %f\n'
+                'AP75: %f\n'
+                'AP Small: %f\n'
+                'AP Medium: %f\n'
+                'AP Large: %f\n'
+                'AR1: %f\n'
+                'AR10: %f\n'
+                'AR100: %f\n'
+                'AR Small: %f\n'
+                'AR Medium: %f\n'
+                'AR Large: %f\n\n'
+                '\nCOCO metric (weighted):\n'
                 'AP [.5:.05:.95]: %f\n'
                 'AP50: %f\n'
                 'AP75: %f\n'
@@ -286,6 +303,19 @@ def __cli__(args):
         
         f = open(f"{args.save_path}/metrics.txt", "a+")
         f.write(('\nCOCO METRICS:\n'
+                'AP [.5:.05:.95]: %f\n'
+                'AP50: %f\n'
+                'AP75: %f\n'
+                'APsmall: %f\n'
+                'APmedium: %f\n'
+                'APlarge: %f\n'
+                'AR1: %f\n'
+                'AR10: %f\n'
+                'AR100: %f\n'
+                'ARsmall: %f\n'
+                'ARmedium: %f\n'
+                'ARlarge: %f\n\n'
+                '\nCOCO METRICS (WEIGHTED):\n'
                 'AP [.5:.05:.95]: %f\n'
                 'AP50: %f\n'
                 'AP75: %f\n'
