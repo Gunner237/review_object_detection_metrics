@@ -8,6 +8,7 @@ import pandas as pd
 from src.bounding_box import BoundingBox
 from src.utils.enumerators import (BBFormat, CoordinatesType,
                                    MethodAveragePrecision)
+from src.utils.weight_metrics import weightMetrics
 
 
 def calculate_ap_every_point(rec, prec):
@@ -83,7 +84,8 @@ def get_pascalvoc_metrics(gt_boxes,
                           det_boxes,
                           iou_threshold=0.5,
                           method=MethodAveragePrecision.EVERY_POINT_INTERPOLATION,
-                          generate_table=False):
+                          generate_table=False,
+                          weighted=False):
     """Get the metrics used by the VOC Pascal 2012 challenge.
     Args:
         boundingboxes: Object of the class BoundingBoxes representing ground truth and detected
@@ -221,11 +223,19 @@ def get_pascalvoc_metrics(gt_boxes,
         }
     # For mAP, only the classes in the gt set should be considered
     mAP = sum([v['AP'] for k, v in ret.items() if k in gt_classes_only]) / len(gt_classes_only)
-    return {'per_class': ret, 'mAP': mAP}
+    
+    mAParr = [v['AP'] for k, v in ret.items() if k in gt_classes_only]
+    mAP_classlistarr = [k for k, v in ret.items()]
+    mAP_weighted = weightMetrics(mAParr,mAP_classlistarr,BoundingBox.get_amount_bounding_box_all_classes(gt_boxes),1)
+    if weighted:
+        return {'per_class': ret, 'mAP': mAP, 'mAP_weighted': mAP_weighted}
+    else:
+        return {'per_class': ret, 'mAP': mAP}
 
 
 def plot_precision_recall_curve(results,
                                 mAP=None,
+                                mAP_weighted=None,
                                 showInterpolatedPrecision=False,
                                 savePath=None,
                                 showGraphic=True,
@@ -262,7 +272,10 @@ def plot_precision_recall_curve(results,
     plt.ylabel('precision')
     plt.xlim([-0.1, 1.1])
     plt.ylim([-0.1, 1.1])
-    if mAP:
+    if mAP_weighted:
+        map_str = "{0:.2f}%".format(mAP_weighted * 100)
+        plt.title(f'{customTitle}\nPrecision x Recall curve, mAP_w={map_str}')
+    elif mAP:
         map_str = "{0:.2f}%".format(mAP * 100)
         plt.title(f'{customTitle}\nPrecision x Recall curve, mAP={map_str}')
     else:

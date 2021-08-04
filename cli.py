@@ -229,10 +229,11 @@ def __cli__(args):
     if 'voc2012' in args.metric:
         logging.info("Running metric with VOC2012 metric, using the every point interpolation approach")
 
-        voc_sum = pascal_voc_evaluator.get_pascalvoc_metrics(gt_anno, det_anno, iou_threshold=args.threshold)
+        voc_sum = pascal_voc_evaluator.get_pascalvoc_metrics(gt_anno, det_anno, iou_threshold=args.threshold,weighted=True)
         
         # Output to console
         print("mAP: %f"%(voc_sum['mAP']))
+        print("mAP (weighted): %f"%(voc_sum['mAP_weighted']))
         print("Class APs:")
         for class_item in voc_sum['per_class'].items():
             if class_item[1]['AP'] != None:
@@ -243,7 +244,8 @@ def __cli__(args):
         # Output to text file
         f = open(f"{args.save_path}/metrics.txt", "a+")
         f.write("PASCAL METRIC (mAP):\n")
-        f.write("mAP: %g\n\n"%(voc_sum['mAP']))
+        f.write("mAP: %g\n"%(voc_sum['mAP']))
+        f.write("mAP (weighted): %g\n\n"%(voc_sum['mAP_weighted']))
         f.write("PASCAL METRIC (AP per class):\n")
         for class_item in voc_sum['per_class'].items():
             if class_item[1]['AP'] != None:
@@ -252,7 +254,7 @@ def __cli__(args):
         
         if args.plot:
             # All classes
-            pascal_voc_evaluator.plot_precision_recall_curve(voc_sum['per_class'], mAP=voc_sum['mAP'], savePath=args.save_path, showGraphic=False, customTitle=args.plot_title)
+            pascal_voc_evaluator.plot_precision_recall_curve(voc_sum['per_class'], mAP_weighted=voc_sum['mAP_weighted'], savePath=args.save_path, showGraphic=False, customTitle=args.plot_title)
             
             # For each class
             pascal_voc_evaluator.plot_precision_recall_curves(voc_sum['per_class'], showAP=True, savePath=args.save_path, showGraphic=False, customTitle=args.plot_title)
@@ -266,7 +268,7 @@ def __cli__(args):
         logging.info("Running metric with COCO metric")
 
         # use coco_out for PR graphs and coco_sum for just the AP
-        coco_sum = coco_evaluator.get_coco_summary(gt_anno, det_anno,1)
+        coco_sum = coco_evaluator.get_coco_summary(gt_anno, det_anno,weighted=True)
         coco_out = coco_evaluator.get_coco_metrics(gt_anno, det_anno, iou_threshold=args.threshold)
         
         # print(coco_sum)
